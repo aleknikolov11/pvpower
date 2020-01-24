@@ -1,5 +1,8 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 
+import random
+import os, sys
+import argparse
 import pathlib
 
 import matplotlib.pyplot as plt
@@ -12,14 +15,22 @@ from tensorflow import keras
 from tensorflow.keras import layers
 from tensorflow.keras import regularizers
 
-import random
-import os
+
+def args_parser():
+    parser = argparse.ArgumentParser(description='Train a model to predict pv power generation')
+    parser.add_argument('-forecast', dest='forecast_csv', default='', required=False, help='Provide a forecast dataset for model predictions')
+
+    return parser.parse_args()
 
 # Normalization function
 def norm(x, train_stats):
     return(x - train_stats['mean']) / train_stats['std']
 
 if __name__ == "__main__":
+
+    # Get script arguments
+    args = args_parser()
+
     
     # Load dataset
     dataset = pd.read_csv('PV_training_dataset.csv')
@@ -121,28 +132,37 @@ if __name__ == "__main__":
     # Load model
     model = tf.keras.models.load_model('pvpower_model.h5')
     
-    # Load forecast dataset
-    raw_dataset = pd.read_csv('PV_forecast_dataset.csv')
-    dataset = raw_dataset.copy()
-    
-    # Remove pv estimates from dataset
-    dataset.pop('pv_estimate')
-    
-    dataset = pd.get_dummies(dataset, prefix='', prefix_sep='')
-    
-    normed_dataset = norm(dataset, train_stats)
-    
-    # Get predictions
-    predictions = model.predict(normed_dataset).flatten()
-    predictions = predictions.tolist()
-    cleaned_predictions = list()
-    
-    # Remove very small or negative values
-    for prediction in predictions:
-        if(prediction < 0.005):
-            prediction = 0.0;
-        cleaned_predictions.append(prediction)
-            
-    #Write predictions in a csv file
-    predictions_row = pd.DataFrame({'pv_predictions': cleaned_predictions})
-    predictions_row.to_csv('model_predictions.csv')
+    forecast_dataset = args.forecast_csv if(args.forecast_csv) else 'PV_forecast_dataset.csv'
+
+    try:
+        # Load forecast dataset
+        raw_dataset = pd.read_csv('PV_forecast_dataset.csv')
+        dataset = raw_dataset.copy()
+        
+        # Remove pv estimates from dataset
+        dataset.pop('pv_estimate')
+        
+        dataset = pd.get_dummies(dataset, prefix='', prefix_sep='')
+        
+        normed_dataset = norm(dataset, train_stats)
+        
+        # Get predictions
+        predictions = model.predict(normed_dataset).flatten()
+        predictions = predictions.tolist()
+        cleaned_predictions = list()
+        
+        # Remove very small or negative values
+        for prediction in predictions:
+            if(prediction < 0.005):
+                prediction = 0.0;
+            cleaned_predictions.append(prediction)
+                
+        #Write predictions in a csv file
+        predictions_row = pd.DataFrame({'pv_predictions': cleaned_predictions})
+        predictions_row.to_csv('model_predictions.csv')
+
+    except OSError as err:
+        print('Error: {0}'.format(err))
+    except:
+        print("Unexpected error:", sys.exc_info()[0])
+        raise
