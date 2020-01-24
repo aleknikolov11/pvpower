@@ -34,6 +34,7 @@ if __name__ == "__main__":
     
     # Load dataset
     dataset = pd.read_csv('PV_training_dataset.csv')
+    dataset = dataset.dropna()
 
     # Clear dataset
     dataset.pop('period_end')
@@ -137,6 +138,7 @@ if __name__ == "__main__":
     try:
         # Load forecast dataset
         raw_dataset = pd.read_csv('PV_forecast_dataset.csv')
+        raw_dataset = raw_dataset.dropna()
         dataset = raw_dataset.copy()
         
         # Remove pv estimates from dataset
